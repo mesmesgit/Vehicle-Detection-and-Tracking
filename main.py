@@ -40,7 +40,7 @@ def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
         #trk = convert_to_cv2bbox(trk)
         for d,det in enumerate(detections):
          #   det = convert_to_cv2bbox(det)
-            IOU_mat[t,d] = box_iou2(trk,det)
+            IOU_mat[t,d] = helpers.box_iou2(trk,det)
 
     # Produces matches
     # Solve the maximizing the sum of IOU assignment problem using the
