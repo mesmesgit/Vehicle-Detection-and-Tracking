@@ -9,6 +9,7 @@ import glob
 from moviepy.editor import VideoFileClip
 from collections import deque
 from sklearn.utils.linear_assignment_ import linear_assignment
+import time
 
 import helpers
 import detector
