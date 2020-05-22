@@ -33,6 +33,8 @@ COCO_INSTANCE_CATEGORY_NAMES = [
     'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'N/A', 'book',
     'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ]
+W_orig = 1280
+H_orig = 720
 
 class CarDetector(object):
     def __init__(self):
