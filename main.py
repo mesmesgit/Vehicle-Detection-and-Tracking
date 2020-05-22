@@ -30,6 +30,9 @@ track_id_list= deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'])
 # set the debug flag
 debug = False       # True for test on sequence of images in test_images/;  False for video
 
+# instantiate CarDetector object
+det = detector.CarDetector()
+
 
 def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
     '''
@@ -94,6 +97,7 @@ def pipeline(img):
     global min_hits
     global track_id_list
     global debug
+    global det
 
     frame_count+=1
 
@@ -199,7 +203,7 @@ def pipeline(img):
 
 def main():
     # instantiate CarDetector object
-    det = detector.CarDetector()
+    # det = detector.CarDetector()
 
     if debug: # test on a sequence of images
         images = [plt.imread(file) for file in glob.glob('./test_images/*.jpg')]
