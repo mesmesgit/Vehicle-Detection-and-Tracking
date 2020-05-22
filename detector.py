@@ -114,7 +114,7 @@ class CarDetector(object):
             boxes_rev = []
             scores_rev = []
             box_metrics = []
-            for j, box in enumerate(boxes):
+            for j, box in enumerate(thresh_boxes):
                 (x1, y1), (x2, y2) = box
                 left = int(x1)
                 top = int(y1)
@@ -126,7 +126,7 @@ class CarDetector(object):
                 cy = int(abs(y2 + y1)/2.0)
                 box_metrics.append([cx, cy, width, height, area, as_ratio])
                 boxes_rev.append([left, top, width, height])
-                scores_rev.append(float(scores[j]))
+                scores_rev.append(float(thresh_score[j]))
             #  make call to NMSBoxes
             idxs = cv2.dnn.NMSBoxes(boxes_rev, scores_rev, score_threshold, nms_threshold)
 
@@ -153,9 +153,9 @@ class CarDetector(object):
                 if width < width_threshold or height < height_threshold or area < area_threshold \
                     or as_ratio > ratio_threshold:
                     continue
-                nms_scores.append(scores[idx])
-                nms_boxes.append(boxes[idx])
-                nms_pred_cls.append(pred_cls[idx])
+                nms_scores.append(thresh_score[idx])
+                nms_boxes.append(thresh_boxes[idx])
+                nms_pred_cls.append(thresh_class[idx])
                 self.car_boxes.append([cx, cy, width, height])
             #
         # end of if stmt to ensure at least one detection
