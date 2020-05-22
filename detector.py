@@ -62,7 +62,7 @@ class CarDetector(object):
         # initialize the returned list
         self.car_boxes = []
         # open the input image
-        img = Image.open(image)
+        img = image
         #  put the image into tensor form; start by creating a transformation
         transform = T.Compose([T.ToTensor()])
         # MES - perform the transformation and send to GPU (if used)
