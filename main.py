@@ -10,7 +10,7 @@ import glob
 from moviepy.editor import VideoFileClip
 from collections import deque
 # from sklearn.utils.linear_assignment_ import linear_assignment
-from scipy.optimize import linear_sum_assignment as linear_assignment
+from scipy.optimize import linear_sum_assignment
 import time
 
 import helpers
@@ -53,7 +53,11 @@ def assign_detections_to_trackers(trackers, detections, iou_thrd = 0.3):
     # Solve the maximizing the sum of IOU assignment problem using the
     # Hungarian algorithm (also known as Munkres algorithm)
 
-    matched_idx = linear_assignment(-IOU_mat)
+    # matched_idx = linear_assignment(-IOU_mat)     # sklearn.utils
+    matched_idx = linear_sum_assignment(-IOU_mat)         # scipy.optimize
+    matched_idx = np.asarray(matched_idx)
+    matched_idx = np.transpose(matched_idx)
+
 
     unmatched_trackers, unmatched_detections = [], []
     for t, trk in enumerate(trackers):
@@ -224,14 +228,16 @@ def main():
                 pf_detected = 'Exxact'
             elif (os_list[1] == 'EN4113948L'):
                 pf_detected = 'Kevin'
+            elif (os_list[1] == 'Luther'):
+                pf_detected = 'Luther'
     else:
         pf_detected = 'PC'
     #
     # debug
-    print("os.name: ", os.name)
-    print("os_list[0]: ", os_list[0])
-    print("os_list[1]: ", os_list[1])
-    exit()
+    # print("os.name: ", os.name)
+    # print("os_list[0]: ", os_list[0])
+    # print("os_list[1]: ", os_list[1])
+    # exit()
     #
     # set the root path based on the computer/platform
     #   rootPath is path to directory in which webots/ and imdata/ directories reside
@@ -251,6 +257,11 @@ def main():
 
     elif (pf_detected == 'Kevin'):
         rootPath = '/home/local/ASUAD/mestric1/Documents/AVCES/'
+        device = device0
+        gpu_ids = None
+
+    elif (pf_detected == 'Luther'):
+        rootPath = '/home/mes/Documents/AVCES/'
         device = device0
         gpu_ids = None
 
@@ -277,8 +288,9 @@ def main():
     else: # test on a video file.
         # start the clock
         start=time.time()
-        input = 'project_video.mp4'
-        output = 'test_FRCNN.mp4'
+        input = 'project_video.mp4'       # original
+        # input = rootPath + 'imdata/downloads-YouTube/CCT007/CCT007-Scene-005.mp4'
+        output = 'test_FRCNN_verify.mp4'
         clip1 = VideoFileClip(input)#.subclip(4,49) # The first 8 seconds doesn't have any cars...
         clip = clip1.fl_image(pipeline)
         clip.write_videofile(output, audio=False)
