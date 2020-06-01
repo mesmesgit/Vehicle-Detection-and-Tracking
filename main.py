@@ -3,6 +3,7 @@
 revised MES 5/22/20
 """
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import glob
