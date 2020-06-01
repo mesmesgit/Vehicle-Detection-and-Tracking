@@ -202,6 +202,62 @@ def pipeline(img):
 #
 
 def main():
+    #
+    # MES edits 6/1/20
+    # Device configuration
+    device0 = torch.device('cuda:0')
+    device1 = torch.device('cuda:1')
+    device2 = torch.device('cpu')
+    #
+    # determine which computer/platform we are running on
+    if (os.name == "posix"):
+        os_list = os.uname()
+        if (os_list[0] == "Darwin"):
+            pf_detected = 'MAC'
+        elif (os_list[0] == "Linux"):
+            if (os_list[1] == 'en4119351l'):
+                pf_detected = 'Quadro'
+            elif (os_list[1] == '19fef43c2174'):
+                pf_detected = 'Exxact'
+            elif (os_list[1] == 'EN4113948L'):
+                pf_detected = 'Kevin'
+    else:
+        pf_detected = 'PC'
+    #
+    # debug
+    print("os.name: ", os.name)
+    print("os_list[0]: ", os_list[0])
+    print("os_list[1]: ", os_list[1])
+    #
+    # set the root path based on the computer/platform
+    #   rootPath is path to directory in which webots/ and imdata/ directories reside
+    if (pf_detected == 'MAC'):
+        rootPath = '/Users/mes/Documents/ASU-Classes/Research/Ben-Amor/code/'
+        device = device2
+
+    elif (pf_detected == 'Quadro'):
+        rootPath = '/home/local/ASUAD/mestric1/Documents/AVCES/'
+
+    elif (pf_detected == 'Exxact'):
+        rootPath = '/home/dockeruser/Documents/AVCES/'
+        device = device1
+        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # gpu_ids = [0, 1]
+        gpu_ids = [1]
+
+    elif (pf_detected == 'Kevin'):
+        rootPath = '/home/local/ASUAD/mestric1/Documents/AVCES/'
+        device = device0
+        gpu_ids = None
+
+    elif (pf_detected == 'PC'):
+        # rootPath = 'C:\Users\cesar\Desktop\Furi\'
+        print("PC platform detected.  Exiting.")
+        exit()
+    else:
+        print("Computer/Platform not detected.  Exiting.")
+        exit()
+    #
     # instantiate CarDetector object
     # det = detector.CarDetector()
 
