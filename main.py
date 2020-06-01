@@ -206,6 +206,7 @@ def main():
     #
     # MES edits 6/1/20
     # Device configuration
+    import torch
     device0 = torch.device('cuda:0')
     device1 = torch.device('cuda:1')
     device2 = torch.device('cpu')
@@ -229,6 +230,7 @@ def main():
     print("os.name: ", os.name)
     print("os_list[0]: ", os_list[0])
     print("os_list[1]: ", os_list[1])
+    exit()
     #
     # set the root path based on the computer/platform
     #   rootPath is path to directory in which webots/ and imdata/ directories reside
