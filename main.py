@@ -289,9 +289,9 @@ def main():
         # start the clock
         start=time.time()
         # input = 'project_video.mp4'       # original
-        input = rootPath + 'imdata/downloads-YouTube/CCT007/CCT007-Scene-005.mp4'
+        input = rootPath + 'imdata/downloads-YouTube/CCT007/CCT007-Scene-009.mp4'
         # output = 'test_FRCNN_verify.mp4'  # original
-        output = rootPath + 'imdata/processed/CCT007/CCT007-Scene-005/kfv1.mp4'
+        output = rootPath + 'imdata/processed/CCT007/CCT007-Scene-009/kfv1.mp4'
         clip1 = VideoFileClip(input)#.subclip(4,49) # The first 8 seconds doesn't have any cars...
         clip = clip1.fl_image(pipeline)
         clip.write_videofile(output, audio=False)
