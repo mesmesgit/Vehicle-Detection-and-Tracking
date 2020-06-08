@@ -107,7 +107,7 @@ if __name__ == "__main__":
     import glob
     import helpers
 
-    # Creat an instance
+    # Create an instance
     trk = Tracker()
     # Test R_ratio
     trk.R_scaler = 1.0/16
