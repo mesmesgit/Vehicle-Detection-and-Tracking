@@ -72,7 +72,8 @@ class CarDetector(object):
         img = transform(img).to(device)
         #  use the NN model to generate object detection prediction
         # pred = model([img])
-        pred = model(img)
+        img = img[None, :, :, :]    # change for mobilenet 
+        pred = model(img)       # change for mobilenet
         #  get the confidence score - confidence that the object label applied is correct
         pred_score = list(pred[0]['scores'].detach().cpu().numpy())
         #  get the COCO class name for each predicted object label
