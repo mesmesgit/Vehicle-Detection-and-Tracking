@@ -2,7 +2,7 @@
 """@author: kyleguan
 revised MES 5/22/20
 """
-
+# installed module imports
 import os
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,10 +12,10 @@ from collections import deque
 # from sklearn.utils.linear_assignment_ import linear_assignment
 from scipy.optimize import linear_sum_assignment
 import time
-
-import helpers
-import detector
-import tracker
+# local imports
+import helpers_FRCNN as helpers
+import detector_FRCNN as detector
+import tracker_FRCNN as tracker
 
 # Global variables to be used by functions of VideoFileClip
 frame_count = 0 # frame counter
@@ -209,75 +209,13 @@ def pipeline(img):
 
 def main():
     #
-    # MES edits 6/1/20
-    # Device configuration
-    import torch
-    device0 = torch.device('cuda:0')
-    device1 = torch.device('cuda:1')
-    device2 = torch.device('cpu')
-    #
-    # determine which computer/platform we are running on
-    if (os.name == "posix"):
-        os_list = os.uname()
-        if (os_list[0] == "Darwin"):
-            pf_detected = 'MAC'
-        elif (os_list[0] == "Linux"):
-            if (os_list[1] == 'en4119351l'):
-                pf_detected = 'Quadro'
-            elif (os_list[1] == '19fef43c2174'):
-                pf_detected = 'Exxact'
-            elif (os_list[1] == 'EN4113948L'):
-                pf_detected = 'Kevin'
-            elif (os_list[1] == 'Luther'):
-                pf_detected = 'Luther'
-    else:
-        pf_detected = 'PC'
-    #
-    # debug
-    # print("os.name: ", os.name)
-    # print("os_list[0]: ", os_list[0])
-    # print("os_list[1]: ", os_list[1])
-    # exit()
-    #
-    # set the root path based on the computer/platform
-    #   rootPath is path to directory in which webots/ and imdata/ directories reside
-    if (pf_detected == 'MAC'):
-        rootPath = '/Users/mes/Documents/ASU-Classes/Research/Ben-Amor/code/'
-        device = device2
-
-    elif (pf_detected == 'Quadro'):
-        rootPath = '/home/local/ASUAD/mestric1/Documents/AVCES/'
-
-    elif (pf_detected == 'Exxact'):
-        rootPath = '/home/dockeruser/Documents/AVCES/'
-        device = device1
-        # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        # gpu_ids = [0, 1]
-        gpu_ids = [1]
-
-    elif (pf_detected == 'Kevin'):
-        rootPath = '/home/local/ASUAD/mestric1/Documents/AVCES/'
-        device = device0
-        gpu_ids = None
-
-    elif (pf_detected == 'Luther'):
-        rootPath = '/home/mes/Documents/AVCES/'
-        device = device0
-        gpu_ids = None
-
-    elif (pf_detected == 'PC'):
-        # rootPath = 'C:\Users\cesar\Desktop\Furi\'
-        print("PC platform detected.  Exiting.")
-        exit()
-    else:
-        print("Computer/Platform not detected.  Exiting.")
-        exit()
+    rootPath = "/home/mes/Documents/AVCES/"
     #
     # instantiate CarDetector object
     # det = detector.CarDetector()
 
     if debug: # test on a sequence of images
-        images = [plt.imread(file) for file in glob.glob('./test_images/*.jpg')]
+        images = [plt.imread(file) for file in sorted(glob.glob('./test_images/*.jpg'))]
 
         for i in range(len(images))[0:7]:
              image = images[i]
@@ -287,19 +225,22 @@ def main():
 
     else: # test on a video file.
         # start the clock
-        start=time.time()
-        # input = 'project_video.mp4'       # original
-        input = rootPath + 'imdata/downloads-YouTube/CCT007/CCT007-Scene-045.mp4'
-        # output = 'test_FRCNN_verify.mp4'  # original
-        output = rootPath + 'imdata/processed/CCT007/CCT007-Scene-045/kfv1.mp4'
+        start = time.time()
+        # # input = 'project_video.mp4'       # original
+        # input = rootPath + 'imdata/downloads-YouTube/CCT007/CCT007-Scene-045.mp4'
+        # # output = 'test_FRCNN_verify.mp4'  # original
+        # output = rootPath + 'imdata/processed/CCT007/CCT007-Scene-045/kfv1.mp4'
+
+        input = rootPath + 'imdata/dataset/sim/videos/czb6_015_rgb.mp4'
+        output = rootPath + 'imdata/dataset/sim/overlay/czb6_015_VDT_MRCNN.mp4'
         clip1 = VideoFileClip(input)#.subclip(4,49) # The first 8 seconds doesn't have any cars...
         clip = clip1.fl_image(pipeline)
         clip.write_videofile(output, audio=False)
 
         # stop the clock
-        end  = time.time()
+        end = time.time()
         # print the elapsed time
-        print(round(end-start, 2), 'Seconds to finish')
+        print("Time elapsed: {} seconds.".format(round(end-start, 2)))
 #
 # end of main()
 #

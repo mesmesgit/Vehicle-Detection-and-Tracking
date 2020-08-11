@@ -132,8 +132,7 @@ class CarDetector(object):
                       box_w = box[3] - box[1]
                       ratio = box_h/(box_w + 0.01)
 
-                      # if ((ratio < 0.8) and (box_h>20) and (box_w>20)):
-                      if True:
+                      if ((ratio < 0.8) and (box_h>20) and (box_w>20)):
                           tmp_car_boxes.append(box)
                           print(box, ', confidence: ', scores[idx], 'ratio:', ratio)
 

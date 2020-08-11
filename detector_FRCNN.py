@@ -16,7 +16,8 @@ from glob import glob
 cwd = os.path.dirname(os.path.realpath(__file__))
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True).to(device)
+# model = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True).to(device)
+model = torchvision.models.detection.maskrcnn_resnet50_fpn(pretrained=True).to(device)
 model.eval()
 #
 COCO_INSTANCE_CATEGORY_NAMES = [
