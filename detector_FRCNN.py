@@ -1,3 +1,4 @@
+# @updated by Michael Drolet 8/30/20
 '''
 Implement and test car detection (localization)
 '''
@@ -163,7 +164,7 @@ class CarDetector(object):
             #
         # end of if stmt to ensure at least one detection
         # return the final list of bounding boxes
-        return self.car_boxes
+        return self.car_boxes, nms_scores
 
 if __name__ == '__main__':
         # Test the performance of the detector

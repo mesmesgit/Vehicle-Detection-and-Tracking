@@ -1,5 +1,6 @@
 #  revised python script
 #  Rev MES 5/22/20
+# @updated by Michael Drolet 8/30/20
 """
 Helper classes and functions for detection and tracking
 """
@@ -47,6 +48,7 @@ def box_iou2(a, b):
     # convert [cx, cy, width, height] to [let, top, right, bottom]
     a = convert_cxcy_to_cv2bbox(a)
     b = convert_cxcy_to_cv2bbox(b)
+
     w_intsec = np.maximum (0, (np.minimum(a[2], b[2]) - np.maximum(a[0], b[0])))
     h_intsec = np.maximum (0, (np.minimum(a[3], b[3]) - np.maximum(a[1], b[1])))
     s_intsec = w_intsec * h_intsec
@@ -54,6 +56,25 @@ def box_iou2(a, b):
     s_b = (b[2] - b[0])*(b[3] - b[1])
 
     return float(s_intsec)/(s_a + s_b -s_intsec)
+
+def obscured_overlap(found, tracked):
+    '''
+    Helper funciton to calculate the percent of overlap between a tracked (not measured)
+    car and a found (measured) car. Used if the found car is obstructing the tracked car,
+    but the detector didn't detect the tracked car.
+    a[0], a[1], a[2], a[3] <-> left, up, right, bottom
+    '''
+    a = found
+    b = tracked
+    # convert [cx, cy, width, height] to [let, top, right, bottom]
+    a = convert_cxcy_to_cv2bbox(a)
+    b = convert_cxcy_to_cv2bbox(b)
+
+    w_intsec = np.maximum (0, (np.minimum(a[2], b[2]) - np.maximum(a[0], b[0])))
+    h_intsec = np.maximum (0, (np.minimum(a[3], b[3]) - np.maximum(a[1], b[1])))
+    s_intsec = w_intsec * h_intsec
+    b_area = (b[2] - b[0]) * (b[3] - b[1])
+    return float(s_intsec)/float(b_area)
 
 def convert_to_pixel(box_yolo, img, crop_range):
     '''

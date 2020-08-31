@@ -1,8 +1,19 @@
 # Vehicle Detection and Tracking
 
-
 ## Overview
 This repo illustrates the detection and tracking of multiple vehicles using a camera mounted inside a self-driving car.  The aim here is to provide developers, researchers, and engineers a simple framework to quickly iterate different detectors and tracking algorithms. In the process, I focus on simplicity and readability of the code. The detection and tracking pipeline is relatively staight forward. It first initializes a detector and a tracker. Next, detector localizes the vehicles in each video frame. The tracker is then updated with the detection results. Finally the tracking results are annotated and displayed in a video frame.
+
+## Changes by mdrolet01
+* Expand the state vector to support 2nd order tracking of variables (acceleration)
+* Update the transition model, covariance, process noise, etc. to account for 2nd order variables
+* Keep the KF tracker alive during occlusion (as opposed to penalizing the unmatched tracker)
+* Scale the noise covariance (R) by the "inverse of the RCNN confidence to the n'th power" (tunable) on iterations 
+* Calculate the posterior covariance (P) using the Joseph equation (more numerically stable)
+
+Results: Better tracking and occlusion support (without misclassification when vehicles are next to each other).
+
+To run demo: Install python dependencies (torch, etc.) then `python main_FRCNN.py`
+(I modified the FRCNN files)
 
 ## Key files in this repo
   
