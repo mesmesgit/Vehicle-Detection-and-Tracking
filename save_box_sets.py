@@ -11,16 +11,17 @@ import cv2 as cv
 from scipy.optimize import linear_sum_assignment
 from collections import deque
 from moviepy.editor import VideoFileClip
+import math
 # local imports
 import helpers_FRCNN as helpers
 import detector_FRCNN as detector
 import tracker_FRCNN as tracker
-import copy
 
-# Global variables to be used by functions of VideoFileClip
+# Global variables
+dataset = None
 frame_count = 0  # frame counter
 
-max_age = 3     # no.of consecutive unmatched detection before track is deleted
+max_age = 5     # no.of consecutive unmatched detection before track is deleted
 
 min_hits = 3  # no. of consecutive matches needed to establish a track
 
@@ -60,14 +61,25 @@ def assign_detections_to_trackers(xbox, zbox, confidence_zbox, iou_thrd=0.3):
     for t, trk in enumerate(trackers):
         for d, detection in enumerate(detections):
             # det = convert_to_cv2bbox(det)
-            IOU_mat[t, d] = helpers.box_iou2(trk, detection)
+            iou_result = helpers.box_iou2(trk, detection)
+            if math.isnan(iou_result) is True:
+                iou_result = 0.99
+            IOU_mat[t, d] = iou_result
 
     # Produces matches
     # Solve the maximizing the sum of IOU assignment problem using the
     # Hungarian algorithm (also known as Munkres algorithm)
 
     # matched_idx = linear_assignment(-IOU_mat)     # sklearn.utils
-    matched_idx = linear_sum_assignment(-IOU_mat)         # scipy.optimize
+    try:
+        matched_idx = linear_sum_assignment(-IOU_mat)         # scipy.optimize
+    except ValueError:
+        print(" ")
+        print("ValueError in linear_sum_assignment.")
+        print("IOU_mat: ", IOU_mat)
+        print("trackers: ", trackers)
+        print("detections: ", detections)
+        exit()
     matched_idx = np.asarray(matched_idx)
     matched_idx = np.transpose(matched_idx)
 
@@ -134,7 +146,12 @@ def process_image(img):
     frame_count += 1
     current_image = img
     img_dim = (img.shape[1], img.shape[0])
-    z_box, confidence_zbox = det.get_localization(img)  # measurement
+    z_box, confidence_zbox = det.get_localization(img, dataset)  # measurement
+    #
+    # limit number of boxes to 20
+    z_box = z_box[:20]
+    confidence_zbox = confidence_zbox[:20]
+    #
     cur_z_box = z_box
     if debug:
         print('Frame:', frame_count)
@@ -194,7 +211,10 @@ def process_image(img):
             xx = xx.T[0].tolist()
             xx = [xx[0], xx[3], xx[6], xx[9]]
             tmp_trk.box = xx
-            tmp_trk.id = track_id_list.popleft()  # assign an ID for the tracker
+            try:
+                tmp_trk.id = track_id_list.popleft()  # assign an ID for the tracker
+            except IndexError:
+                continue
             tracker_list.append(tmp_trk)
             x_box.append(xx)
 
@@ -265,8 +285,12 @@ def process_video(rootPath,
                   runparams_filepath=None):
     # globals
     global track_id_ref
+    global track_id_list
     # start clock
     time_start = time.time()
+    # re-init the deque
+    track_id_list = deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+                           'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
     # get video filename
     fparts = video_filepath.split('/')
     vid_filename = fparts[-1]
@@ -292,17 +316,17 @@ def process_video(rootPath,
 
     #
     # debug
-    print(" ")
-    print(" ")
-    print("START OF run_id: ", run_id)
-    print("collision_class: ", collision_class)
-    print("amount_frames: ", amount_frames)
-    print("start_frame: ", start_frame)
-    print("end_frame: ", end_frame)
-    print(" ")
-    print("Frame Count from cap.get()")
-    print("Video / Frame_Count:")
-    print("{} / {}".format(vid_filename, amount_frames_cap))
+    # print(" ")
+    # print(" ")
+    # print("START OF run_id: ", run_id)
+    # print("collision_class: ", collision_class)
+    # print("amount_frames: ", amount_frames)
+    # print("start_frame: ", start_frame)
+    # print("end_frame: ", end_frame)
+    # print(" ")
+    # print("Frame Count from cap.get()")
+    # print("Video / Frame_Count:")
+    # print("{} / {}".format(vid_filename, amount_frames_cap))
     # check for agreement with runparams
     if amount_frames_cap != amount_frames:
         print("ERROR:  runparams differs from cap.get() for amount_frames.")
@@ -369,12 +393,12 @@ def process_video(rootPath,
                 data[stored_frame_idx, box_slot, 3] = y2
             #
         #  increment frame count
-        print(" ")
+        # print(" ")
         print("frame {} complete.".format(count))
-        print("final_boxes: ", final_boxes)
-        print("final_ids: ", final_ids)
-        print("stored_frame_idx = {}.".format(stored_frame_idx))
-        print("data[stored_frame_idx]: ", data[stored_frame_idx])
+        # print("final_boxes: ", final_boxes)
+        # print("final_ids: ", final_ids)
+        # print("stored_frame_idx = {}.".format(stored_frame_idx))
+        # print("data[stored_frame_idx]: ", data[stored_frame_idx])
         count += 1
         stored_frame_idx += 1
     # end loop while count
@@ -435,7 +459,9 @@ def find_run_id(input):
     return run_id, run_series, ds
 
 
-def process_dataset(dataset):
+def process_dataset():
+    # globals
+    global dataset
     # set rootPath
     rootPath = "/home/mes/Documents/AVCES/"
     # set npzPath, which holds result of class- and frame-level review
@@ -493,12 +519,14 @@ def process_dataset(dataset):
         #
         #
         #
-    # end of for loop iterating thru runids
+    # end of for loop iterating thru npzs
 # end of process_dataset()
 
 
 def main():
-    test = 2
+    # globals
+    global dataset
+    test = 0
     if test == 1:
         # start the clock
         start = time.time()
@@ -514,16 +542,16 @@ def main():
         print("Time elapsed: {} seconds.".format(round(end-start, 2)))
     elif test == 2:
         rootPath = "/home/mes/Documents/AVCES/"
-        video_filepath = rootPath + "imdata/dataset/vid/videos/yt2.mp4"
-        out_data_filepath = rootPath + "imdata/dataset/vid/features/yt2_featv7.npz"
-        runparams_filepath = rootPath + "imdata/dataset/vid/runparams/yt2.npz"
+        video_filepath = rootPath + "imdata/dataset/vid/videos/yt4.mp4"
+        out_data_filepath = rootPath + "imdata/dataset/vid/features/yt4_featv7.npz"
+        runparams_filepath = rootPath + "imdata/dataset/vid/runparams/yt4.npz"
         process_video(rootPath,
                       video_filepath,
                       out_data_filepath,
                       runparams_filepath)
     else:
-        dataset = "sim"
-        process_dataset(dataset)
+        dataset = "vid"
+        process_dataset()
 # end of main()
 
 

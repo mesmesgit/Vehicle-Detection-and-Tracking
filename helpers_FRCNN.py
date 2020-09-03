@@ -8,6 +8,7 @@ Helper classes and functions for detection and tracking
 import numpy as np
 import cv2
 
+
 class Box:
     def __init__(self):
         self.x, self.y = float(), float()
@@ -15,53 +16,60 @@ class Box:
         self.c = float()
         self.prob = float()
 
-def overlap(x1,w1,x2,w2):
-    l1 = x1 - w1 / 2.;
-    l2 = x2 - w2 / 2.;
+
+def overlap(x1, w1, x2, w2):
+    l1 = x1 - w1 / 2.
+    l2 = x2 - w2 / 2.
     left = max(l1, l2)
-    r1 = x1 + w1 / 2.;
-    r2 = x2 + w2 / 2.;
+    r1 = x1 + w1 / 2.
+    r2 = x2 + w2 / 2.
     right = min(r1, r2)
-    return right - left;
+    return right - left
+
 
 def box_intersection(a, b):
-    w = overlap(a.x, a.w, b.x, b.w);
-    h = overlap(a.y, a.h, b.y, b.h);
-    if w < 0 or h < 0: return 0;
-    area = w * h;
-    return area;
+    w = overlap(a.x, a.w, b.x, b.w)
+    h = overlap(a.y, a.h, b.y, b.h)
+    if w < 0 or h < 0:
+        return 0
+    area = w * h
+    return area
+
 
 def box_union(a, b):
-    i = box_intersection(a, b);
-    u = a.w * a.h + b.w * b.h - i;
-    return u;
+    i = box_intersection(a, b)
+    u = a.w * a.h + b.w * b.h - i
+    return u
+
 
 def box_iou(a, b):
-    return box_intersection(a, b) / box_union(a, b);
+    return box_intersection(a, b) / box_union(a, b)
+
 
 def box_iou2(a, b):
     '''
-    Helper funciton to calculate the ratio between intersection and the union of
-    two boxes a and b
+    Helper function to calculate the ratio between intersection and the union
+    of two boxes a and b
     a[0], a[1], a[2], a[3] <-> left, up, right, bottom
     '''
-    # convert [cx, cy, width, height] to [let, top, right, bottom]
+    # convert [cx, cy, width, height] to [left, top, right, bottom]
     a = convert_cxcy_to_cv2bbox(a)
     b = convert_cxcy_to_cv2bbox(b)
 
-    w_intsec = np.maximum (0, (np.minimum(a[2], b[2]) - np.maximum(a[0], b[0])))
-    h_intsec = np.maximum (0, (np.minimum(a[3], b[3]) - np.maximum(a[1], b[1])))
+    w_intsec = np.maximum(0, (np.minimum(a[2], b[2]) - np.maximum(a[0], b[0])))
+    h_intsec = np.maximum(0, (np.minimum(a[3], b[3]) - np.maximum(a[1], b[1])))
     s_intsec = w_intsec * h_intsec
     s_a = (a[2] - a[0])*(a[3] - a[1])
     s_b = (b[2] - b[0])*(b[3] - b[1])
 
-    return float(s_intsec)/(s_a + s_b -s_intsec)
+    return float(s_intsec)/(s_a + s_b - s_intsec)
+
 
 def obscured_overlap(found, tracked):
     '''
-    Helper funciton to calculate the percent of overlap between a tracked (not measured)
-    car and a found (measured) car. Used if the found car is obstructing the tracked car,
-    but the detector didn't detect the tracked car.
+    Helper funciton to calculate the percent of overlap between a tracked
+    (not measured) car and a found (measured) car. Used if the found car is
+    obstructing the tracked car, but the detector didn't detect tracked car.
     a[0], a[1], a[2], a[3] <-> left, up, right, bottom
     '''
     a = found
@@ -70,11 +78,12 @@ def obscured_overlap(found, tracked):
     a = convert_cxcy_to_cv2bbox(a)
     b = convert_cxcy_to_cv2bbox(b)
 
-    w_intsec = np.maximum (0, (np.minimum(a[2], b[2]) - np.maximum(a[0], b[0])))
-    h_intsec = np.maximum (0, (np.minimum(a[3], b[3]) - np.maximum(a[1], b[1])))
+    w_intsec = np.maximum(0, (np.minimum(a[2], b[2]) - np.maximum(a[0], b[0])))
+    h_intsec = np.maximum(0, (np.minimum(a[3], b[3]) - np.maximum(a[1], b[1])))
     s_intsec = w_intsec * h_intsec
     b_area = (b[2] - b[0]) * (b[3] - b[1])
     return float(s_intsec)/float(b_area)
+
 
 def convert_to_pixel(box_yolo, img, crop_range):
     '''
@@ -101,8 +110,10 @@ def convert_to_pixel(box_yolo, img, crop_range):
     height = int(box.h*(ymax - ymin))
 
     # Deal with corner cases
-    if left  < 0    :  left = 0
-    if top   < 0    :   top = 0
+    if left < 0:
+        left = 0
+    if top < 0:
+        top = 0
 
     # Return the coordinates (in the unit of the pixels)
 
@@ -110,8 +121,7 @@ def convert_to_pixel(box_yolo, img, crop_range):
     return box_pixel
 
 
-
-def convert_to_cv2bbox(bbox, img_dim = (1280, 720)):
+def convert_to_cv2bbox(bbox, img_dim=(1280, 720)):
     '''
     Helper fucntion for converting bbox to bbox_cv2
     bbox = [left, top, width, height]
@@ -125,6 +135,7 @@ def convert_to_cv2bbox(bbox, img_dim = (1280, 720)):
     bottom = np.minimum(img_dim[1], bbox[1] + bbox[3])
 
     return (left, top, right, bottom)
+
 
 def convert_cxcy_to_cv2bbox(bbox, img_dim=(1280, 720)):
     """
@@ -146,7 +157,7 @@ def draw_box_label(img, bbox, box_color=(0, 255, 255), show_label=True):
     bbox = [cx, cy, width, height]
     need to have [left, top, right, bottom]
     '''
-    #box_color= (0, 255, 255)
+    # box_color= (0, 255, 255)
     font = cv2.FONT_HERSHEY_SIMPLEX
     font_size = 0.7
     font_color = (0, 0, 0)
@@ -156,13 +167,13 @@ def draw_box_label(img, bbox, box_color=(0, 255, 255), show_label=True):
     cv2.rectangle(img, (left, top), (right, bottom), box_color, 4)
 
     if show_label:
-        # Draw a filled box on top of the bounding box (as the background for the labels)
+        # Draw filled box on top of bounding box (as background for labels)
         cv2.rectangle(img, (left-2, top-45), (right+2, top), box_color, -1, 1)
 
-        # Output the labels that show the x and y coordinates of the bounding box center.
-        text_x= 'x='+str((left+right)/2)
-        cv2.putText(img,text_x,(left,top-25), font, font_size, font_color, 1, cv2.LINE_AA)
-        text_y= 'y='+str((top+bottom)/2)
-        cv2.putText(img,text_y,(left,top-5), font, font_size, font_color, 1, cv2.LINE_AA)
+        # Output labels that show x and y coordinates of bounding box center.
+        text_x = 'x='+str((left+right)/2)
+        cv2.putText(img, text_x, (left, top-25), font, font_size, font_color, 1, cv2.LINE_AA)
+        text_y = 'y='+str((top+bottom)/2)
+        cv2.putText(img, text_y, (left, top-5), font, font_size, font_color, 1, cv2.LINE_AA)
 
     return img
