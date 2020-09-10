@@ -284,13 +284,35 @@ def process_video(rootPath,
                   out_data_filepath,
                   runparams_filepath=None):
     # globals
+    global dataset
+    global frame_count
+    global max_age
+    global min_hits
+    global tracker_list
     global track_id_ref
+    global colors
     global track_id_list
+    global debug
+    global det
+    global track_debug
+    global tracking_obstructed
+    global current_image
+    global cur_z_box
     # start clock
     time_start = time.time()
-    # re-init the deque
+    # re-init the deque and other stuff needed for a new video
+    frame_count = 0  # frame counter
+    tracker_list = []  # list for trackers
     track_id_list = deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
                            'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
+
+    # instantiate CarDetector object
+    det = detector.CarDetector()
+    track_debug = set()
+    tracking_obstructed = set()
+    current_image = None
+    cur_z_box = None
+
     # get video filename
     fparts = video_filepath.split('/')
     vid_filename = fparts[-1]
@@ -462,6 +484,22 @@ def find_run_id(input):
 def process_dataset():
     # globals
     global dataset
+    global max_age
+    global min_hits
+    # global-set specific values
+    if dataset == "sim":
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 3  # no. of consecutive matches needed to establish a track
+    elif dataset == "ss":
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 1  # no. of consecutive matches needed to establish a track
+    elif dataset == "vid":
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 3  # no. of consecutive matches needed to establish a track
+    else:
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 3  # no. of consecutive matches needed to establish a track
+    #
     # set rootPath
     rootPath = "/home/mes/Documents/AVCES/"
     # set npzPath, which holds result of class- and frame-level review

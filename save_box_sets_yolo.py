@@ -5,7 +5,7 @@
 #       and save array of organized bounding
 #       boxes for vehicles in the video.
 #
-#  Rev MES 9/1/2020 to substitute YOLO for Mask-RCNN
+#   Rev MES 9/5/2020 to substitue YOLO for Mask-RCNN object detector
 #
 import os
 import time
@@ -14,15 +14,17 @@ import cv2 as cv
 from scipy.optimize import linear_sum_assignment
 from collections import deque
 from moviepy.editor import VideoFileClip
+import math
 # local imports
 import helpers_FRCNN as helpers
 import detector_YOLOv3 as detector
 import tracker_FRCNN as tracker
 
-# Global variables to be used by functions of VideoFileClip
+# Global variables
+dataset = None
 frame_count = 0  # frame counter
 
-max_age = 3     # no.of consecutive unmatched detection before track is deleted
+max_age = 5     # no.of consecutive unmatched detection before track is deleted
 
 min_hits = 3  # no. of consecutive matches needed to establish a track
 
@@ -62,14 +64,25 @@ def assign_detections_to_trackers(xbox, zbox, confidence_zbox, iou_thrd=0.3):
     for t, trk in enumerate(trackers):
         for d, detection in enumerate(detections):
             # det = convert_to_cv2bbox(det)
-            IOU_mat[t, d] = helpers.box_iou2(trk, detection)
+            iou_result = helpers.box_iou2(trk, detection)
+            if math.isnan(iou_result) is True:
+                iou_result = 0.99
+            IOU_mat[t, d] = iou_result
 
     # Produces matches
     # Solve the maximizing the sum of IOU assignment problem using the
     # Hungarian algorithm (also known as Munkres algorithm)
 
     # matched_idx = linear_assignment(-IOU_mat)     # sklearn.utils
-    matched_idx = linear_sum_assignment(-IOU_mat)         # scipy.optimize
+    try:
+        matched_idx = linear_sum_assignment(-IOU_mat)         # scipy.optimize
+    except ValueError:
+        print(" ")
+        print("ValueError in linear_sum_assignment.")
+        print("IOU_mat: ", IOU_mat)
+        print("trackers: ", trackers)
+        print("detections: ", detections)
+        exit()
     matched_idx = np.asarray(matched_idx)
     matched_idx = np.transpose(matched_idx)
 
@@ -123,20 +136,36 @@ def process_image(img):
     '''
     Pipeline function for detection and tracking
     '''
+    global dataset
     global frame_count
-    global tracker_list
     global max_age
     global min_hits
+    global tracker_list
+    global track_id_ref
+    global colors
     global track_id_list
     global debug
     global det
+    global track_debug
+    global tracking_obstructed
     global current_image
     global cur_z_box
 
     frame_count += 1
     current_image = img
     img_dim = (img.shape[1], img.shape[0])
-    z_box, confidence_zbox = det.get_localization(img)  # measurement
+    z_box, confidence_zbox = det.get_localization(img, dataset)  # measurement
+    #
+    # debug
+    # print(" ")
+    # print("frame_count: ", frame_count)
+    # print("z_box: ", z_box)
+    # print("confidence_zbox: ", confidence_zbox)
+    #
+    # limit number of boxes to 20
+    z_box = z_box[:20]
+    confidence_zbox = confidence_zbox[:20]
+    #
     cur_z_box = z_box
     if debug:
         print('Frame:', frame_count)
@@ -196,7 +225,10 @@ def process_image(img):
             xx = xx.T[0].tolist()
             xx = [xx[0], xx[3], xx[6], xx[9]]
             tmp_trk.box = xx
-            tmp_trk.id = track_id_list.popleft()  # assign an ID for the tracker
+            try:
+                tmp_trk.id = track_id_list.popleft()  # assign an ID for the tracker
+            except IndexError:
+                continue
             tracker_list.append(tmp_trk)
             x_box.append(xx)
 
@@ -266,9 +298,35 @@ def process_video(rootPath,
                   out_data_filepath,
                   runparams_filepath=None):
     # globals
+    global dataset
+    global frame_count
+    global max_age
+    global min_hits
+    global tracker_list
     global track_id_ref
+    global colors
+    global track_id_list
+    global debug
+    global det
+    global track_debug
+    global tracking_obstructed
+    global current_image
+    global cur_z_box
     # start clock
     time_start = time.time()
+    # re-init the deque and other stuff needed for a new video
+    frame_count = 0  # frame counter
+    tracker_list = []  # list for trackers
+    track_id_list = deque(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
+                           'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'])
+
+    # instantiate CarDetector object
+    det = detector.CarDetector()
+    track_debug = set()
+    tracking_obstructed = set()
+    current_image = None
+    cur_z_box = None
+
     # get video filename
     fparts = video_filepath.split('/')
     vid_filename = fparts[-1]
@@ -305,7 +363,6 @@ def process_video(rootPath,
     # print("Frame Count from cap.get()")
     # print("Video / Frame_Count:")
     # print("{} / {}".format(vid_filename, amount_frames_cap))
-    #
     # check for agreement with runparams
     if amount_frames_cap != amount_frames:
         print("ERROR:  runparams differs from cap.get() for amount_frames.")
@@ -371,15 +428,13 @@ def process_video(rootPath,
                 data[stored_frame_idx, box_slot, 2] = x2
                 data[stored_frame_idx, box_slot, 3] = y2
             #
-        # debug
+        #  increment frame count
         # print(" ")
         print("frame {} complete.".format(count))
         # print("final_boxes: ", final_boxes)
         # print("final_ids: ", final_ids)
         # print("stored_frame_idx = {}.".format(stored_frame_idx))
         # print("data[stored_frame_idx]: ", data[stored_frame_idx])
-        #
-        #  increment frame count
         count += 1
         stored_frame_idx += 1
     # end loop while count
@@ -440,13 +495,32 @@ def find_run_id(input):
     return run_id, run_series, ds
 
 
-def process_dataset(dataset):
+def process_dataset():
+    # globals
+    global dataset
+    global max_age
+    global min_hits
+    # global-set specific values
+    if dataset == "sim":
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 3  # no. of consecutive matches needed to establish a track
+    elif dataset == "ss":
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 1  # no. of consecutive matches needed to establish a track
+    elif dataset == "vid":
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 3  # no. of consecutive matches needed to establish a track
+    else:
+        max_age = 5     # no.of consecutive unmatched detection before track is deleted
+        min_hits = 3  # no. of consecutive matches needed to establish a track
+    #
     # set rootPath
     rootPath = "/home/mes/Documents/AVCES/"
     # set npzPath, which holds result of class- and frame-level review
     npzPath = rootPath + "imdata/dataset/" + dataset + "/runparams/"
     # need to get list of runids
     list_npz = sorted(os.listdir(npzPath))
+    # list_npz = ["ss28.npz"]
     #
     for npz in list_npz:
         # get runparams info
@@ -486,24 +560,26 @@ def process_dataset(dataset):
             #
         #
         #  set output .npz filepath
-        featv7_npz_filepath = rootPath + "imdata/dataset/" + dataset + \
-                              "/features/" + run_id + "_featv7.npz"
+        featv8_npz_filepath = rootPath + "imdata/dataset/" + dataset + \
+                              "/features/" + run_id + "_featv8.npz"
         #
         #
         #
         process_video(rootPath,
                       video_filepath,
-                      featv7_npz_filepath,
+                      featv8_npz_filepath,
                       runparams_filepath)
         #
         #
         #
-    # end of for loop iterating thru runids
+    # end of for loop iterating thru npzs
 # end of process_dataset()
 
 
 def main():
-    test = 2
+    # globals
+    global dataset
+    test = 0
     if test == 1:
         # start the clock
         start = time.time()
@@ -518,17 +594,18 @@ def main():
         # print the elapsed time
         print("Time elapsed: {} seconds.".format(round(end-start, 2)))
     elif test == 2:
+        dataset = "sim"
         rootPath = "/home/mes/Documents/AVCES/"
-        video_filepath = rootPath + "imdata/dataset/vid/videos/yt3.mp4"
-        out_data_filepath = rootPath + "imdata/dataset/vid/features/yt3_featv7.npz"
-        runparams_filepath = rootPath + "imdata/dataset/vid/runparams/yt3.npz"
+        video_filepath = rootPath + "imdata/dataset/sim/videos/czb6_002_rgb.mp4"
+        out_data_filepath = rootPath + "imdata/dataset/sim/features/czb6_002_featv8.npz"
+        runparams_filepath = rootPath + "imdata/dataset/sim/runparams/czb6_002.npz"
         process_video(rootPath,
                       video_filepath,
                       out_data_filepath,
                       runparams_filepath)
     else:
-        dataset = "sim"
-        process_dataset(dataset)
+        dataset = "vid"
+        process_dataset()
 # end of main()
 
 

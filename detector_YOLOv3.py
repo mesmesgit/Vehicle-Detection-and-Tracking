@@ -9,8 +9,13 @@ import cv2 as cv
 import os
 cwd = os.path.dirname(os.path.realpath(__file__))
 
-model = cv.dnn.readNetFromDarknet('yolo_model/yolov3.cfg', 'yolo_model/yolov3.weights')
-model.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)
+model = cv.dnn.readNetFromDarknet('yolo_model/yolov3-spp.cfg', 'yolo_model/yolov3-spp.weights')
+#  for opencv on CPU
+# model.setPreferableBackend(cv.dnn.DNN_BACKEND_OPENCV)
+#  for opencv on GPU using CUDA
+model.setPreferableBackend(cv.dnn.DNN_BACKEND_CUDA)
+# model.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA)     # fast
+model.setPreferableTarget(cv.dnn.DNN_TARGET_CUDA_FP16)  # fastest
 # determine the output layer
 ln = model.getLayerNames()
 ln = [ln[i[0] - 1] for i in model.getUnconnectedOutLayers()]
@@ -33,8 +38,8 @@ classes = COCO_INSTANCE_CATEGORY_NAMES
 W_orig = 1280
 H_orig = 720
 # MES:  init list of classes of interest for traffic applications
-list_coconame_traffic = ['person', 'bicycle', 'car', 'motorcycle',
-                         'bus', 'truck']
+# list_coconame_traffic = ['person', 'bicycle', 'car', 'motorcycle',
+#                          'bus', 'truck']
 
 
 class CarDetector(object):
@@ -50,7 +55,7 @@ class CarDetector(object):
         (im_width, im_height) = image.size
         return np.array(image.getdata()).reshape((im_height, im_width, 3)).astype(np.uint8)
 
-    def get_localization(self, image):
+    def get_localization(self, image, dataset):
 
         """Determines the locations of the cars in the image
 
@@ -62,9 +67,7 @@ class CarDetector(object):
             revised list of bounding boxes:  coord [cx, cy, width, height]
 
         """
-        # open the input image
-        img = image
-        self.H, self.W = img.shape[:2]
+
 
         # initialize the returned list
         self.car_boxes = []
@@ -72,13 +75,61 @@ class CarDetector(object):
         boxes = []
         box_confidences = []
         class_confidences = []
-        score_threshold = float(0.4)    # orig: 0.5; 0.2 for sim/ss;  0.7 for vid
-        nms_threshold = float(0.3)      # orig: 0.3; 0.7 for sim runs; 0.2 for ss runs; 0.2 for vid
+        class_conf_gl = 0.35   # 0.35
+        box_conf_gl = 0.2
+        nms_conf = 0.2
         area_threshold = 0  # float((self.W*self.H)/400.0) = 2304
         height_threshold = 0  # 20
         width_threshold = 0  # 20
-        ratio_threshold = 1.0  # 0.8
-        n_topn = 10  # 15
+        ratio_threshold = 50.0  # 0.8
+        top_k = 20
+        n_topn = 15  # 15
+        if dataset == "sim":
+            list_coconame_traffic = ['person', 'bicycle', 'car', 'motorcycle',
+                                     'bus', 'truck']
+            top_k = 20
+            n_topn = 15
+            class_conf_gl = float(0)    # orig: 0.5; 0.2 for sim/ss;  0.7 for vid
+            box_conf_gl = float(0)
+            nms_conf = float(0.001)      # orig: 0.3; 0.7 for sim runs; 0.2 for ss runs; 0.2 for vid
+        elif dataset == "ss":
+            list_coconame_traffic = ['bicycle', 'car', 'motorcycle',
+                                     'bus', 'truck', 'train', 'suitcase', 'bench']
+            # list_coconame_traffic = COCO_INSTANCE_CATEGORY_NAMES
+            top_k = 20
+            n_topn = 10
+            class_conf_gl = float(0.001)    # orig: 0.5; 0.2 for sim/ss;  0.7 for vid
+            box_conf_gl = float(0.001)
+            nms_conf = float(0.001)      # orig: 0.3; 0.7 for sim runs; 0.2 for ss runs; 0.2 for vid
+        elif dataset == "vid":
+            list_coconame_traffic = ['person', 'bicycle', 'car', 'motorcycle',
+                                     'bus', 'truck', 'train']
+            top_k = 20
+            n_topn = 20
+            class_conf_gl = 0.35   # 0.35
+            box_conf_gl = 0.2
+            nms_conf = 0.2
+            area_threshold = 50  # float((self.W*self.H)/400.0) = 2304
+            height_threshold = 10  # 20
+            width_threshold = 10  # 20
+            ratio_threshold = 5.0  # 0.8
+        else:
+            list_coconame_traffic = ['person', 'bicycle', 'car', 'motorcycle',
+                                     'bus', 'truck']
+            top_k = 20
+            n_topn = 20
+            class_conf_gl = 0.35   # 0.35
+            box_conf_gl = 0.2
+            nms_conf = 0.2
+            area_threshold = 50  # float((self.W*self.H)/400.0) = 2304
+            height_threshold = 10  # 20
+            width_threshold = 10  # 20
+            ratio_threshold = 5.0  # 0.8
+        #
+
+        # open the input image
+        img = image
+        self.H, self.W = img.shape[:2]
 
         # FRCNN
         #  put the image into tensor form; start by creating a transformation
@@ -121,9 +172,9 @@ class CarDetector(object):
                 #  also require that classID is traffic-related
                 if (classes[classID] in list_coconame_traffic):
                     # consider box only if box confidence exceeds threshold
-                    if box_conf > 0:
+                    if box_conf > box_conf_gl:
                         # if class confidence is below threshold, ignore
-                        if class_conf > 0:
+                        if class_conf > class_conf_gl:
                             # scale outputs to size of original image
                             cx, cy, w, h = output[:4] * np.array([self.W, self.H, self.W, self.H])
                             # if very wide box at bottom of frame, skip
@@ -135,10 +186,20 @@ class CarDetector(object):
                             if h > 700:
                                 continue
                             # convert to x1, y1, x2, y2
-                            x1 = int(cx - w//2)
-                            y1 = int(cy - h//2)
+                            x1 = int(max(0, cx - w//2))
+                            y1 = int(max(0, cy - h//2))
                             x2 = int(x1 + w)
                             y2 = int(y1 + h)
+                            # # vid problem with large boxes near dashcam
+                            if w > 750 and y1 > 270 and y2 > 660:
+                                continue
+                            # debug
+                            # print(" ")
+                            # print("box: ", [x1, y1, x2, y2])
+                            # print("class: ", classes[classID])
+                            # print("class confidence: ", class_conf)
+                            # print("box_conf: ", box_conf)
+                            #
                             # add to keep lists
                             boxes.append([x1, y1, x2, y2])
                             box_confidences.append(float(box_conf))
@@ -167,9 +228,9 @@ class CarDetector(object):
                 cy = int(abs(y2 + y1)/2.0)
                 box_metrics.append([cx, cy, width, height, area, as_ratio])
                 boxes_rev.append([left, top, width, height])
-                scores_rev.append(float(class_confidences[j]))
+                scores_rev.append(float(box_confidences[j]))
             #  make call to NMSBoxes
-            idxs = cv.dnn.NMSBoxes(boxes_rev, scores_rev, score_threshold, nms_threshold)
+            idxs = cv.dnn.NMSBoxes(boxes_rev, scores_rev, box_conf_gl, nms_conf, top_k=top_k)
 
             # convert numpy array of indices to list
             list1_idxs = list(idxs)
@@ -190,11 +251,12 @@ class CarDetector(object):
             # width_threshold = 20
             # ratio_threshold = 0.8
             for idx in list2_idxs:
-                cx, cy, width, height, area, as_ratio = box_metrics[idx]
-                if width < width_threshold or height < height_threshold or area < area_threshold \
-                 or as_ratio > ratio_threshold:
+                metric = box_metrics[idx]
+                cx, cy, width, height, area, as_ratio = metric
+                if width < width_threshold or height < height_threshold or area < area_threshold or as_ratio > ratio_threshold:
                     continue
-                nms_scores.append(class_confidences[idx])
+                #
+                nms_scores.append(box_confidences[idx])
                 self.car_boxes.append([cx, cy, width, height])
             #
         # end of if stmt to ensure at least one detection
