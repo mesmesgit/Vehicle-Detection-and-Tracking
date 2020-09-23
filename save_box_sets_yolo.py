@@ -520,7 +520,10 @@ def process_dataset():
     npzPath = rootPath + "imdata/dataset/" + dataset + "/runparams/"
     # need to get list of runids
     list_npz = sorted(os.listdir(npzPath))
-    # list_npz = ["ss28.npz"]
+    # set specific run_series
+    list_target_run_series = ["CCT061", "CCT062", "CCT063", "CCT064", "CCT065",
+                              "CCT066", "CCT067", "CCT068", "CCT069", "CCT070",
+                             ]
     #
     for npz in list_npz:
         # get runparams info
@@ -531,6 +534,11 @@ def process_dataset():
             print(" ")
             print("ERROR:  ds does not match dataset, exiting.")
             exit()
+        #
+        # if target run series is not empty, do not process if not in target run series
+        if len(list_target_run_series) > 0:
+            if run_series not in list_target_run_series:
+                continue
         #
         if run_series[0] == 'c' or run_series[0] == 'p':
             vidPath = rootPath + "imdata/dataset/sim/videos/"
@@ -544,10 +552,17 @@ def process_dataset():
         elif run_series == 'CCT060':
             vidPath = rootPath + "imdata/downloads-YouTube/CCT060/"
             video_filepath = vidPath + run_id + ".mp4"
+        elif run_series == 'CCT061' or run_series == 'CCT062' or \
+             run_series == 'CCT063' or run_series == 'CCT064' or \
+             run_series == 'CCT065' or run_series == 'CCT066' or \
+             run_series == 'CCT067' or run_series == 'CCT068' or \
+             run_series == 'CCT069' or run_series == 'CCT070':
+            vidPath = rootPath + "imdata/downloads-YouTube/" + run_series + "/"
+            video_filepath = vidPath + run_id + ".mp4"
         elif run_series == 'CCT185':
             vidPath = rootPath + "imdata/downloads-YouTube/CCT185/"
             video_filepath = vidPath + run_id + ".mp4"
-        else:
+        else:       # CCT001-CCT059
             with np.load(runparams_filepath) as f:
                 collision_class = int(f['collision_class'])
             #
